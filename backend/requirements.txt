@@ -1,0 +1,13 @@
+﻿fastapi[standard]
+uvicorn[standard]
+gunicorn
+pydantic-settings
+pdfplumber
+requests
+sentence-transformers
+faiss-cpu
+numpy
+python-docx
+python-dotenv
+python-multipart
+openrouter

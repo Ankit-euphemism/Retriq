@@ -1,0 +1,10 @@
+.env
+__pycache__/
+__pycache__*
+*.pyc
+.fastapicloud/
+.venv/
+venv/
+.git/
+tests/
+*.faiss          # FAISS index files — regenerated at runtime

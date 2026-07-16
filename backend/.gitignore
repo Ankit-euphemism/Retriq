@@ -1,0 +1,40 @@
+# Python gitignore template
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+__pycache__/*
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+.coverage
+htmlcov/
+
+.env
+.env.*
+!.env.example
+.venv/
+*.pyc
+.fastapicloud/
+tests/
+*.faiss
+*.pkl

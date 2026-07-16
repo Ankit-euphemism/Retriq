@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en" class="bg-[#0a0e14]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Retriq  — Smart Document Q&amp;A</title>
+    <meta
+      name="description"
+      content="Upload a PDF or DOCX, ask questions, and get retrieval-based answers from your document."
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+        --color-background: #0a0e14;
+        --color-surface: #10151d;
+        --color-surface-raised: #161c26;
+        --color-border: #232b38;
+        --color-foreground: #e7ecf3;
+        --color-muted: #8b95a5;
+        --color-accent: #22d3ee;
+        --color-accent-strong: #0ea5b7;
+        --color-accent-foreground: #06232a;
+      }
+
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        background:
+          radial-gradient(1100px 500px at 50% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+          var(--color-background);
+      }
+
+      .grid-lines {
+        background-image:
+          linear-gradient(to right, rgba(139, 149, 165, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(139, 149, 165, 0.05) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: radial-gradient(ellipse 90% 65% at 50% 0%, black 30%, transparent 75%);
+      }
+
+      .dropzone.dragover {
+        border-color: var(--color-accent);
+        background-color: rgba(34, 211, 238, 0.06);
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .spinner {
+        animation: spin 0.7s linear infinite;
+      }
+
+      @keyframes fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .fade-up {
+        animation: fade-up 0.35s ease both;
+      }
+
+      #output::-webkit-scrollbar {
+        width: 8px;
+      }
+      #output::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: 999px;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen font-sans text-foreground antialiased">
+    <!-- Decorative grid backdrop -->
+    <div class="grid-lines pointer-events-none fixed inset-0" aria-hidden="true"></div>
+
+    <div class="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+      <!-- Top bar -->
+      <header class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2.5">
+          <span
+            class="flex size-8 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/30"
+            aria-hidden="true"
+          >
+            <svg class="size-4 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M9 15l2 2 4-4" />
+            </svg>
+          </span>
+          <span class="text-base font-bold tracking-tight">Retriq</span>
+        </div>
+        <span class="hidden items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-muted sm:flex">
+          <span class="size-1.5 rounded-full bg-accent" aria-hidden="true"></span>
+          Retrieval Engine · v1
+        </span>
+      </header>
+
+      <!-- Hero -->
+      <section class="mx-auto mt-10 max-w-2xl text-center sm:mt-14">
+        <h1 class="text-balance text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+          Ask anything.<br class="sm:hidden" />
+          <span class="text-accent">Your document answers.</span>
+        </h1>
+        <p class="mt-4 text-pretty text-sm leading-relaxed text-muted sm:text-base">
+          Upload a PDF or DOCX, type your questions, and get precise
+          retrieval-based answers pulled straight from the document&apos;s contents.
+        </p>
+      </section>
+
+      <!-- Main workspace -->
+      <main class="mt-8 sm:mt-10">
+        <div class="grid gap-4 lg:grid-cols-2">
+          <!-- Step 1: Upload -->
+          <section
+            class="rounded-2xl border border-border bg-surface p-5 sm:p-6"
+            aria-labelledby="upload-heading"
+          >
+            <div class="mb-4 flex items-center gap-2.5">
+              <span class="flex size-6 items-center justify-center rounded-md bg-accent/10 font-mono text-xs font-semibold text-accent" aria-hidden="true">1</span>
+              <h2 id="upload-heading" class="font-mono text-xs font-semibold uppercase tracking-widest text-muted">
+                Upload document
+              </h2>
+            </div>
+
+            <label
+              id="dropzone"
+              for="pdfFile"
+              class="dropzone flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-surface-raised px-4 py-8 text-center transition-colors hover:border-accent/50"
+            >
+              <svg class="size-8 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="M17 8l-5-5-5 5" />
+                <path d="M12 3v12" />
+              </svg>
+              <div>
+                <p class="text-sm font-semibold">
+                  <span class="text-accent">Click to upload</span> or drag &amp; drop
+                </p>
+                <p class="mt-1 text-xs text-muted">PDF or DOCX · one file</p>
+              </div>
+            </label>
+            <input class="sr-only" type="file" id="pdfFile" accept=".pdf,.docx" aria-describedby="fileMeta" />
+
+            <!-- Selected file chip -->
+            <div
+              id="fileChip"
+              class="mt-3 hidden items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/5 px-4 py-3"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <svg class="size-5 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+                <div class="min-w-0">
+                  <p id="fileMeta" class="truncate text-sm font-medium">No file selected</p>
+                  <p id="fileSize" class="font-mono text-[11px] text-muted"></p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="removeFile"
+                class="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-raised hover:text-foreground"
+                aria-label="Remove selected file"
+              >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+          </section>
+
+          <!-- Step 2: Questions -->
+          <section
+            class="flex flex-col rounded-2xl border border-border bg-surface p-5 sm:p-6"
+            aria-labelledby="questions-heading"
+          >
+            <div class="mb-4 flex items-center gap-2.5">
+              <span class="flex size-6 items-center justify-center rounded-md bg-accent/10 font-mono text-xs font-semibold text-accent" aria-hidden="true">2</span>
+              <h2 id="questions-heading" class="font-mono text-xs font-semibold uppercase tracking-widest text-muted">
+                Ask your questions
+              </h2>
+            </div>
+
+            <label class="sr-only" for="questionsInput">Questions</label>
+            <textarea
+              id="questionsInput"
+              rows="4"
+              placeholder="Type your question(s) here… as one question, or several as a JSON list, e.g. [Q1, Q2]"
+              class="min-h-28 w-full flex-1 resize-y rounded-xl border border-border bg-surface-raised p-4 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted/70 focus:border-accent/60 focus:ring-2 focus:ring-accent/15"
+            ></textarea>
+
+            <p class="mt-2 text-xs text-muted">
+              One question, or several as a JSON list — e.g.
+              <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px]">["Q1", "Q2"]</code>
+            </p>
+
+            <!-- Sample questions -->
+            <!-- <div class="mt-3 flex flex-wrap gap-2" aria-label="Sample questions">
+              <button type="button" class="sample-q rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-foreground">
+                What is the grace period?
+              </button>
+              <button type="button" class="sample-q rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-foreground">
+                What is the effective date?
+              </button>
+              <button type="button" class="sample-q rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-foreground">
+                Is knee surgery covered?
+              </button>
+            </div> -->
+          </section>
+        </div>
+
+        <!-- Submit -->
+        <button
+          id="submitBtn"
+          onclick="submitQuery()"
+          class="mt-4 flex min-h-13 w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-6 py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/15 transition-all hover:bg-accent-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <svg id="btnIcon" class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m22 2-7 20-4-9-9-4z" />
+            <path d="M22 2 11 13" />
+          </svg>
+          <svg id="btnSpinner" class="spinner hidden size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+          </svg>
+          <span id="btnLabel">Ask Retriq</span>
+        </button>
+        <p class="mt-2 text-center font-mono text-[11px] text-muted">
+          Tip: press <kbd class="rounded border border-border bg-surface px-1.5 py-0.5">Ctrl</kbd> + <kbd class="rounded border border-border bg-surface px-1.5 py-0.5">Enter</kbd> to submit
+        </p>
+
+        <!-- Results -->
+        <section class="mt-8" aria-labelledby="results-heading" aria-live="polite">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <span class="flex size-6 items-center justify-center rounded-md bg-accent/10 font-mono text-xs font-semibold text-accent" aria-hidden="true">3</span>
+              <h2 id="results-heading" class="font-mono text-xs font-semibold uppercase tracking-widest text-muted">
+                Answers
+              </h2>
+            </div>
+            <span id="statusBadge" class="hidden rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-muted"></span>
+          </div>
+
+          <div
+            id="output"
+            class="min-h-32 max-h-[32rem] overflow-auto rounded-2xl border border-border bg-surface p-5 sm:p-6"
+          >
+            <!-- Empty state -->
+            <div id="emptyState" class="flex min-h-24 flex-col items-center justify-center gap-2 py-6 text-center">
+              <svg class="size-7 text-muted/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <p class="text-sm text-muted">Answers will appear here after you submit.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="mt-10 border-t border-border pt-5 text-center">
+        <p class="font-mono text-[11px] uppercase tracking-widest text-muted">
+          Retriq · Retrieval-based document intelligence
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("pdfFile");
+      const fileChip = document.getElementById("fileChip");
+      const fileMeta = document.getElementById("fileMeta");
+      const fileSize = document.getElementById("fileSize");
+      const removeFileBtn = document.getElementById("removeFile");
+      const dropzone = document.getElementById("dropzone");
+      const output = document.getElementById("output");
+      const statusBadge = document.getElementById("statusBadge");
+      const submitBtn = document.getElementById("submitBtn");
+      const btnIcon = document.getElementById("btnIcon");
+      const btnSpinner = document.getElementById("btnSpinner");
+      const btnLabel = document.getElementById("btnLabel");
+      const questionsInput = document.getElementById("questionsInput");
+
+      /* ---------- Helpers ---------- */
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+      }
+
+      function setStatus(text, tone) {
+        if (!text) {
+          statusBadge.classList.add("hidden");
+          return;
+        }
+        statusBadge.textContent = text;
+        statusBadge.classList.remove("hidden");
+        statusBadge.className =
+          "rounded-full border px-2.5 py-1 font-mono text-[11px] " +
+          (tone === "error"
+            ? "border-red-400/30 bg-red-400/10 text-red-300"
+            : tone === "success"
+              ? "border-accent/30 bg-accent/10 text-accent"
+              : "border-border bg-surface text-muted");
+      }
+
+      function setLoading(isLoading) {
+        submitBtn.disabled = isLoading;
+        btnIcon.classList.toggle("hidden", isLoading);
+        btnSpinner.classList.toggle("hidden", !isLoading);
+        btnLabel.textContent = isLoading ? "Analyzing document…" : "Ask ClauseIQ";
+      }
+
+      /* ---------- File selection ---------- */
+
+      function showFile(file) {
+        if (!file) {
+          fileChip.classList.add("hidden");
+          fileChip.classList.remove("flex");
+          return;
+        }
+        fileMeta.textContent = file.name;
+        fileSize.textContent = formatBytes(file.size);
+        fileChip.classList.remove("hidden");
+        fileChip.classList.add("flex");
+      }
+
+      fileInput.addEventListener("change", () => showFile(fileInput.files[0]));
+
+      removeFileBtn.addEventListener("click", () => {
+        fileInput.value = "";
+        showFile(null);
+      });
+
+      /* Drag & drop */
+      ["dragenter", "dragover"].forEach((evt) =>
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.add("dragover");
+        }),
+      );
+      ["dragleave", "drop"].forEach((evt) =>
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("dragover");
+        }),
+      );
+      dropzone.addEventListener("drop", (e) => {
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        const ok = /\.(pdf|docx)$/i.test(file.name);
+        if (!ok) {
+          setStatus("Only PDF or DOCX files are supported", "error");
+          return;
+        }
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        showFile(file);
+        setStatus("");
+      });
+
+      /* Sample question chips */
+      document.querySelectorAll(".sample-q").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const current = questionsInput.value.trim();
+          questionsInput.value = current
+            ? current + "\n" + btn.textContent.trim()
+            : btn.textContent.trim();
+          questionsInput.focus();
+        });
+      });
+
+      /* Ctrl/Cmd + Enter to submit */
+      questionsInput.addEventListener("keydown", (e) => {
+        if (e.nativeEvent ? e.nativeEvent.isComposing : e.isComposing) return;
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          submitQuery();
+        }
+      });
+
+      /* ---------- Response rendering ---------- */
+
+      function renderPrimitive(value) {
+        if (value === null) return '<span class="text-muted">null</span>';
+        if (typeof value === "boolean") return `<span class="text-accent">${value}</span>`;
+        if (typeof value === "number") return `<span class="text-amber-300">${value}</span>`;
+        return `<span class="text-foreground">${escapeHtml(value)}</span>`;
+      }
+
+      function renderValue(value) {
+        if (Array.isArray(value)) {
+          if (!value.length) return '<p class="text-sm text-muted">No items returned.</p>';
+          return `
+            <ol class="grid gap-3">
+              ${value
+                .map(
+                  (item, index) => `
+                    <li class="fade-up rounded-xl border border-border bg-surface-raised p-4" style="animation-delay:${index * 60}ms">
+                      <p class="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-accent">Answer ${index + 1}</p>
+                      <div class="text-sm leading-relaxed">${renderNestedValue(item)}</div>
+                    </li>
+                  `,
+                )
+                .join("")}
+            </ol>
+          `;
+        }
+
+        if (value && typeof value === "object") {
+          const entries = Object.entries(value);
+          if (!entries.length) return '<p class="text-sm text-muted">No details returned.</p>';
+          return `
+            <div class="grid gap-3">
+              ${entries
+                .map(
+                  ([key, entryValue]) => `
+                    <div class="rounded-xl border border-border bg-surface-raised p-4">
+                      <p class="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-accent">${escapeHtml(key)}</p>
+                      <div class="text-sm leading-relaxed">${renderNestedValue(entryValue)}</div>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          `;
+        }
+
+        return `<p class="m-0 text-sm leading-relaxed">${renderPrimitive(value)}</p>`;
+      }
+
+      function renderNestedValue(value) {
+        if (Array.isArray(value)) {
+          if (!value.length) return '<p class="m-0 text-sm text-muted">No items returned.</p>';
+
+          if (value.every((item) => typeof item !== "object" || item === null)) {
+            return `
+              <ul class="list-disc space-y-2 pl-5">
+                ${value.map((item) => `<li class="leading-relaxed">${renderPrimitive(item)}</li>`).join("")}
+              </ul>
+            `;
+          }
+
+          return `
+            <div class="grid gap-3">
+              ${value
+                .map(
+                  (item, index) => `
+                    <div class="rounded-lg border border-border bg-background/60 p-3">
+                      <p class="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted">Item ${index + 1}</p>
+                      ${renderNestedValue(item)}
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          `;
+        }
+
+        if (value && typeof value === "object") {
+          return `
+            <dl class="grid gap-2">
+              ${Object.entries(value)
+                .map(
+                  ([key, entryValue]) => `
+                    <div class="grid gap-1 rounded-lg bg-background/60 p-3">
+                      <dt class="font-mono text-[11px] font-semibold uppercase tracking-widest text-muted">${escapeHtml(key)}</dt>
+                      <dd class="m-0 leading-relaxed">${renderNestedValue(entryValue)}</dd>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </dl>
+          `;
+        }
+
+        return renderPrimitive(value);
+      }
+
+      function renderResponse(data) {
+        if (!data || typeof data !== "object") {
+          return `<p class="m-0 text-sm">${renderPrimitive(data)}</p>`;
+        }
+
+        if (Array.isArray(data.answers)) {
+          return `
+            <section class="grid gap-4">
+              ${renderValue(data.answers)}
+              ${Object.entries(data)
+                .filter(([key]) => key !== "answers")
+                .map(
+                  ([key, value]) => `
+                    <div class="rounded-xl border border-border bg-surface-raised p-4">
+                      <p class="mb-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted">${escapeHtml(key)}</p>
+                      ${renderValue(value)}
+                    </div>
+                  `,
+                )
+                .join("")}
+            </section>
+          `;
+        }
+
+        return renderValue(data);
+      }
+
+      /* ---------- Submit ---------- */
+
+      async function submitQuery() {
+        const questionsRaw = questionsInput.value.trim();
+
+        if (!fileInput.files[0]) {
+          setStatus("Upload a PDF or DOCX first", "error");
+          dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        if (!questionsRaw) {
+          setStatus("Type at least one question", "error");
+          questionsInput.focus();
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        formData.append("questions", questionsRaw);
+
+        setLoading(true);
+        setStatus("Processing…");
+        output.innerHTML = `
+          <div class="flex min-h-24 flex-col items-center justify-center gap-3 py-6 text-center">
+            <svg class="spinner size-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+            </svg>
+            <p class="text-sm text-muted">Reading your document and retrieving answers…</p>
+          </div>
+        `;
+
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/v1/query/upload", {
+            method: "POST",
+            body: formData,
+            // DON'T set Content-Type header — browser sets multipart boundary automatically
+          });
+
+          const data = await response.json();
+          output.innerHTML = renderResponse(data);
+          setStatus(response.ok ? "Done" : `HTTP ${response.status}`, response.ok ? "success" : "error");
+        } catch (err) {
+          output.innerHTML = `
+            <div class="flex flex-col items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/8 p-5 text-center">
+              <p class="m-0 text-sm font-semibold text-red-300">Something went wrong</p>
+              <p class="m-0 text-sm text-muted">${escapeHtml(err.message)}</p>
+              <p class="m-0 text-xs text-muted">Check that the backend server is running, then try again.</p>
+            </div>
+          `;
+          setStatus("Failed", "error");
+        } finally {
+          setLoading(false);
+        }
+      }
+    </script>
+  </body>
+</html>
